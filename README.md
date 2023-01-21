@@ -16,9 +16,10 @@
 ## How to use?
 ### The steps
 1. Download the KITTI data from [KITTI dataset](https://www.cvlibs.net/datasets/kitti/raw_data.php).
-2. Build an image: `cd docker && docker build .`
-3. change the host-side volume path as yours in the docker_run.sh
-4. Just `sh docker_run.sh`. Enjoy!
+2. Prepare the dataset directory structure [like this](./docs/dataset_directory_structure/guide.gif). 
+3. Build an image: `cd docker && docker build .`
+4. change the host-side volume path as yours in the docker_run.sh
+5. Just `sh docker_run.sh`. Enjoy!
 
 ### You may like ...
 - This [video-based](.)(TBA) guide.  
