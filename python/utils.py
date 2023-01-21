@@ -41,6 +41,7 @@ def downsample_points(vel, cfg):
 
 def visualize(vis_material):
     cfg = vis_material["cfg"]
+    cfg_path = vis_material["cfg_path"]
     poses_gt = vis_material["poses_gt"]
     poses = vis_material["poses"]
     covs = vis_material["cfg"]
@@ -86,6 +87,11 @@ def visualize(vis_material):
         savedir, cfg["input"]["dataname"] + f"_{seq_idx}.png")
     plt.savefig(figure_save_path)
     print(f"Saved to {figure_save_path}")
+
+    import shutil
+    cfg_src = cfg_path
+    cfg_dst = os.path.join(savedir, "cfg.yml")
+    shutil.copyfile(cfg_src, cfg_dst)
 
     # NOTE:
     # at a host-side terminal,

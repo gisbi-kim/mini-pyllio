@@ -9,7 +9,7 @@ import pykitti
 import pypose as pp
 
 
-class KittiIMU(Data.Dataset):
+class KittiDataloader(Data.Dataset):
     def __init__(self, root, dataname, drive, duration=2, step_size=1):
         super().__init__()
         self.duration = duration

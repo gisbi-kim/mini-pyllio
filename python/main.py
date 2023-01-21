@@ -14,7 +14,7 @@ if __name__ == "__main__":
         llio.append_log(data, state)
 
         # if you want to see the result's front part ASAP.
-        test_num_batches = 1000
+        test_num_batches = 10000
         if idx > test_num_batches:
             break
 

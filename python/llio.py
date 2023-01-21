@@ -8,7 +8,7 @@ import pypose as pp
 
 import utils
 from kitti.calib import KittiCalib
-from kitti.imu import KittiIMU, imu_collate
+from kitti.dataloader import KittiDataloader, imu_collate
 
 
 class LLIO:
@@ -41,7 +41,7 @@ class LLIO:
         self.acc_cov = self.acc_std**2
 
     def load_dataset(self):
-        self.dataset = KittiIMU(
+        self.dataset = KittiDataloader(
             self.cfg["input"]["dataroot"],
             self.cfg["input"]["dataname"],
             self.cfg["input"]["datadrive"],
@@ -218,4 +218,5 @@ class LLIO:
             "poses_gt": torch.cat(self.xyzs_gt).numpy(),
             "covs": torch.stack(self.covs, dim=0).numpy(),
             "cfg": self.cfg,
+            "cfg_path": self.cfg_path,
         })

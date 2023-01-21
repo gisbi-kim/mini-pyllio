@@ -18,7 +18,7 @@ step_size: 5 # if 5, and we have 10hz lidar,
              # i.e., the bigger means the sparse aidings.
 use_lidar_correction: True 
 voxel_size: 0.5 # meter
-icp_inlier_threshold: 0.5 # meter
+icp_inlier_threshold: 0.5 # meter, for scan-to-scan registration
 
 visualize_registered_scan: False # just for visual debugging 
 

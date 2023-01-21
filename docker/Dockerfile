@@ -1,5 +1,5 @@
 FROM ubuntu:jammy
-# FROM pypose:imu
+# FROM pypose:llio
 
 ENV TZ="Asia/Seoul"
 ENV DEBIAN_FRONTEND=noninteractive
