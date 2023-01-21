@@ -1,0 +1,24 @@
+input:
+  dataroot: "/data"
+  dataname: "2011_09_30"
+  datadrive: "0020"
+
+output:
+  plot3d: True 
+  save_dir: ../log
+
+# see https://pypose.org/docs/main/generated/pypose.module.IMUPreintegrator/
+gyr_std_const: 0.0032 # pypose's Default: 0.0032.
+acc_std_const: 0.02 # pypose's Default: 0.08.
+
+step_size: 6
+
+use_lidar_correction: True 
+downsampling_mode: "voxel" # voxel or skip
+voxel_size: 0.5
+point_skip: 20
+icp_inlier_threshold: 0.5
+visualize_registered_scan: False
+
+# to get a better aligned a raw acc (see https://github.com/pypose/pypose/blob/5437b71e3dd972f6d140a2becbfde5850a0a43aa/pypose/module/imu_preintegrator.py#L317)
+use_rot_initial: False
