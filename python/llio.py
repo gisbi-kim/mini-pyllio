@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 import torch
 import torch.utils.data as Data
 import open3d as o3d
@@ -9,12 +10,11 @@ import utils
 from kitti.calib import KittiCalib
 from kitti.imu import KittiIMU, imu_collate
 
-import ipdb
-# usage: ipdb.set_trace()
-
 
 class LLIO:
     def __init__(self, cfg_path="cfg.yml"):
+        self.debug_msg = False
+
         self.cfg_path = cfg_path
         self.load_config(self.cfg_path)
 
@@ -23,12 +23,11 @@ class LLIO:
         self.set_caches()
 
     def set_caches(self):
-        self.pose_previous = None
         self.pose_corrected = None
-
         self.pcd_previous = None
+        self.relative_pose_propagated = None
 
-        self.relative_pose = None
+        self.propagated_state = None
 
     def load_config(self, cfg_path):
         self.cfg = utils.load_yaml(cfg_path)
@@ -62,8 +61,7 @@ class LLIO:
         self.calib = KittiCalib()
 
     def set_initials(self, initial):
-        self.pose_previous = self.get_SE3(initial)
-        self.pose_corrected = copy.deepcopy(self.pose_previous)
+        self.pose_corrected = self.get_SE3(initial)
         self.pcd_previous = utils.downsample_points(
             initial["velodyne"][0], self.cfg)
 
@@ -88,62 +86,119 @@ class LLIO:
         print("Pypose IMUPreintegrator is generated.")
 
     def get_rotation(self, data):
-        if not utils.is_true(self.cfg['use_rot_initial']):
+        if not utils.is_true(self.cfg['use_groundtruth_rot']):
             # In general, no GT attitude (rotation) could be available.
-            if self.pose_previous is not None:
-                # this is lidar-aided rotation
-                return self.pose_previous[:3, :3]
-            else:
-                # if a no explicit rotation is provided (i.e., None), use the internally maintained rotation (see https://abit.ly/3acvti and https://abit.ly/9iliex)
-                return None
+            pose_previous = self.pose_corrected
+            return pose_previous[:3, :3]
         else:
             # This is GT rotation
             return data["init_rot"]
 
     def propogate(self, data):
-        propagted_state = self.integrator(  # == forward()
+        propagated_state = self.integrator(  # == forward()
             dt=data["dt"],
             gyro=data["gyro"],
             acc=data["acc"],
             rot=self.get_rotation(data)
         )
-        propagted_pose = self.get_SE3(propagted_state)
-        self.relative_pose = np.linalg.inv(self.pose_previous) @ propagted_pose
+        propagted_pose = self.get_SE3(propagated_state)
 
-        self.update_previous_pose(propagted_pose)
+        pose_corrected_prev = self.pose_corrected
+        self.relative_pose_propagated = \
+            np.linalg.inv(pose_corrected_prev) @ propagted_pose
 
-        return propagted_state
+        if not utils.is_true(self.cfg["use_lidar_correction"]):
+            # if no lidar aid, correction means identity pass (i.e., propagation only)
+            self.update_corrected_pose(propagted_pose)
 
-    def correct(self, data):
-        pcd = utils.downsample_points(data["velodyne"][0], self.cfg)
+        self.propagated_state = propagated_state
+        return propagated_state
 
-        self.registration(source=pcd, target=self.pcd_previous)
+    def correct(self, data, lidar_available=False):
+        if lidar_available:
+            pcd = utils.downsample_points(data["velodyne"][0], self.cfg)
+            dx_imu = self.registration(source=pcd, target=self.pcd_previous)
+
+            pose_corrected_prev = self.pose_corrected
+            pose_corrected = pose_corrected_prev @ dx_imu
+
+            dt_batch = data["dt"][..., -1, :] * self.cfg["step_size"]  # sec
+            corrected_state = self.update_state(dt_batch, pose_corrected)
+
+            self.update_previous_pcd(pcd)
+
+            return corrected_state
+        else:
+            return self.propagated_state
 
     def registration(self, source, target):
-        # We would use point2plane loss and the point2plane loss required normals
-        source.estimate_normals()
-        target.estimate_normals()
+        # short names
+        v2i = self.calib.velo2imu
+        i2v = self.calib.imu2velo
 
-        # because relative_pose is an imu coordinate.
-        dx_initial = self.calib.imu2velo @ self.relative_pose @ self.calib.velo2imu
+        # because relative_pose_propagated is an imu coordinate.
+        dx_imu_initial = self.relative_pose_propagated
+        dx_lidar_initial = i2v @ dx_imu_initial @ v2i
+
+        if utils.is_true(self.cfg["lidar_only_mode"]):
+            dx_lidar_initial = np.identity(4)
 
         # register
         icplib = o3d.pipelines.registration
-        dx = icplib.registration_icp(
+        dx_lidar = icplib.registration_generalized_icp(
             source,
             target,
             self.cfg["icp_inlier_threshold"],
-            dx_initial,
-            icplib.TransformationEstimationPointToPlane(),
-            icplib.ICPConvergenceCriteria(max_iteration=30)
+            dx_lidar_initial,
+            icplib.TransformationEstimationForGeneralizedICP(),
         ).transformation
 
-        # result
-        diff = np.linalg.inv(dx) @ dx_initial
-        print("diff ", diff[:3, -1].transpose())
+        # debug
+        def detect_registration_fails():
+            error = np.linalg.inv(dx_lidar) @ dx_lidar_initial
+            # print("error (xyz):", error[:3, -1].transpose())
+            # if the error is big, registration may failed.
+            # TODO: some action may be required (e.g., do not update, or kf-based weighting)
 
-    def update_previous_pose(self, pose):
-        self.pose_previous = pose
+        if utils.is_true(self.cfg["visualize_registered_scan"]):
+            self.draw_registration(source, target, dx_lidar)
+
+        # result
+        dx_imu = v2i @ dx_lidar @ i2v
+        return dx_imu
+
+    def update_corrected_pose(self, pose):
+        self.pose_corrected = pose
+
+    def update_previous_pcd(self, pcd):
+        self.pcd_previous = pcd
+
+    def update_state(self, dt_batch, pose_corrected):
+        # prepare
+        global_pos = torch.tensor(pose_corrected[:3, -1]).unsqueeze(0)
+
+        pose_corrected_prev = self.pose_corrected
+        global_delta_pos = torch.tensor(
+            pose_corrected[:3, -1] - pose_corrected_prev[:3, -1]).unsqueeze(0)
+        global_vel = global_delta_pos / dt_batch
+
+        global_rot = pp.SO3(R.from_matrix(pose_corrected[:3, :3]).as_quat())
+
+        # update (loosely coupled, thus do explicit replacement) the engine state
+        self.integrator.pos = global_pos
+        self.integrator.vel = global_vel
+        self.integrator.rot = global_rot
+
+        # update the cache
+        self.update_corrected_pose(pose_corrected)
+
+        return {"rot": global_rot,
+                "vel": global_vel.unsqueeze(1),
+                "pos": global_pos.unsqueeze(1),
+                "cov": self.propagated_state["cov"]}
+
+    def draw_registration(self, source, target, delta):
+        utils.draw_registration_result(source, target, delta)
 
     def append_log(self, data, state):
         self.xyzs.append(state["pos"][..., -1, :])

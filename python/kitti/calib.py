@@ -3,7 +3,8 @@ import numpy as np
 
 class KittiCalib:
     def __init__(self):
-        # 2011_09_30
+        # calib_imu_to_velo.txt of 2011_09_30
+        #  see https://www.cvlibs.net/datasets/kitti/raw_data.php?type=residential
         imu2velo_rot = np.array([9.999976e-01, 7.553071e-04, -2.035826e-03,
                                 -7.854027e-04, 9.998898e-01, -1.482298e-02,
                                 2.024406e-03, 1.482454e-02, 9.998881e-01]).reshape(3, 3)

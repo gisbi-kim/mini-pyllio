@@ -1,4 +1,5 @@
 import os
+import datetime
 import numpy as np
 import torch
 from matplotlib.collections import PatchCollection
@@ -35,10 +36,7 @@ def load_yaml(fpath):
 
 
 def downsample_points(vel, cfg):
-    if cfg["downsampling_mode"] == "skip":
-        return velo2skippedpcd(vel, cfg["point_skip"])
-    else:
-        return velo2downpcd(vel, cfg["voxel_size"])
+    return velo2downpcd(vel, cfg["voxel_size"])
 
 
 def visualize(vis_material):
@@ -69,25 +67,23 @@ def visualize(vis_material):
     ax.set_ylabel('y')
     ax.set_zlabel('z')
 
-    plt.title("PyPose IMU Integrator")
-
     if not is_true(cfg["use_lidar_correction"]):
+        plt.title("PyPose IMU-only Odometry")
         plt.legend(["IMU odometry", "Ground Truth"])
     else:
+        plt.title("PyPose+Open3D Loosely coupled LiDAR+IMU Odometry")
         step = cfg["step_size"]
         plt.legend(
-            [f"LiDAR-aided (step: {step}) IMU odometry", "Ground Truth"])
+            [f"LiDAR-aided IMU odometry (step: {step})", "Ground Truth"])
 
-    if not os.path.exists(cfg["output"]["save_dir"]):
-        os.makedirs(cfg["output"]["save_dir"])
+    subdirname = time.strftime("%Y-%m-%d-%H-%M-%S")
+    savedir = os.path.join(cfg["output"]["save_dir"], subdirname)
+    if not os.path.exists(savedir):
+        os.makedirs(savedir)
 
-    drive = cfg["input"]["datadrive"]
-    gyr_std = cfg["gyr_std_const"]
-    acc_std = cfg["acc_std_const"]
+    seq_idx = cfg["input"]["datadrive"]
     figure_save_path = os.path.join(
-        cfg["output"]["save_dir"], cfg["input"]["dataname"] +
-        f"_{drive}_gyrStd{gyr_std}_accStd{acc_std}.png"
-    )
+        savedir, cfg["input"]["dataname"] + f"_{seq_idx}.png")
     plt.savefig(figure_save_path)
     print(f"Saved to {figure_save_path}")
 
@@ -121,7 +117,8 @@ def draw_registration_result(source, target, transformation):
     source_temp.paint_uniform_color([1, 0, 0])
     target_temp.paint_uniform_color([0, 0, 1])
     source_temp.transform(transformation)
-    o3d.visualization.draw_geometries([source_temp, target_temp])
+    o3d.visualization.draw_geometries([source_temp, target_temp],
+                                      "red: scan t-1, blue: scan t")
 
 
 def is_true(flag):
