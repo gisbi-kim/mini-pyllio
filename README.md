@@ -30,6 +30,18 @@
 2. IMU only (with external GT rotation) vs. mini-pyllio
   - <img src="./docs/experiments-summary/z.png" width="800" />
 
+### Others 
+- Try them yourself! (the below list was summarized and provided by [Y. Cho](https://github.com/dudgnsrj))
+  - 00: 2011_10_03_drive_0027 (000000 to 004540)
+  - 02: 2011_10_03_drive_0034 (000000 to 004660)
+  - 05: 2011_09_30_drive_0018 (000000 to 002760)
+  - 06: 2011_09_30_drive_0020 (000000 to 001100)
+  - 07: 2011_09_30_drive_0027 (000000 to 001100)
+  - 08: 2011_09_30_drive_0028 (001100 to 005170)
+  - 09: 2011_09_30_drive_0033 (000000 to 001590)
+  - 10: 2011_09_30_drive_0034 (000000 to 001200) 
+
+
 ## Future work
 - A set of additional efforts could enhance the speed/accruacy.
   - For example,
