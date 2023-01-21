@@ -2,7 +2,7 @@
 - A very **mini**mal but working **Py**thon only implementation for **l**oosely-coupled **L**iDAR-**I**nertial **o**dometry for education purpose.
 
 ## What's this?
-- Recently, [Pypose](https://github.com/pypose/pypose) supports a great example code for the imu integration with an easy-to-follow python-based code. see https://github.com/pypose/pypose/tree/main/examples/module/imu. This is called inertial odometry.
+- Recently, [Pypose](https://github.com/pypose/pypose) made a great example code for the imu integration with an easy-to-follow python-based code. see https://github.com/pypose/pypose/tree/main/examples/module/imu. This is called inertial odometry.
 - In that example, the ground-truth rotation from the expensive GPS+INS system is injected into the propagtaion step.
   - As you will see below, without the external rotation source, the imu itself quickly diverges.
 - I simply replaced it by scan-to-scan registration from LiDAR sensor (with Open3D ICP). Then, the corrected PVA (position, velocity, and attitude) is set as the estimator's newer state. I think this can be said loosely coupled lidar-inertial odometry.
